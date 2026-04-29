@@ -367,10 +367,10 @@ export default function App() {
               <span style={{ fontSize:20 }}>🔌</span>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:12, fontWeight:700, color:"#a5b4fc" }}>
-                  Connecté à BigQuery — <code style={{ fontSize:11, color:"#c4b5fd" }}>letudiant-data-prod.Hacka_g24</code>
+                  Connecté à BigQuery — letudiant-data-prod.Hacka_g24
                 </div>
                 <div style={{ fontSize:11, color:"#6b7280", marginTop:2 }}>
-                  10 tables • Credentials ADC via <code>~/.config/gcloud/application_default_credentials.json</code> •{" "}
+                  10 tables •{" "}
                   <button onClick={() => setSqlModal(BQ_QUERIES.monthly_conversations)} style={{
                     background:"none", border:"none", color:ACCENT, fontSize:11,
                     textDecoration:"underline", cursor:"pointer"
