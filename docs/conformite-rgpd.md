@@ -1,7 +1,6 @@
 # Note de Conformité RGPD - Projet L'Étudiant
 
-**Projet :** L'Étudiant Dashboard & Data Pipeline | Case #3 - Hacka_g24  
-**Date :** 29 Avril 2026 | **Version :** 1.1 (Markdown)
+**Projet :** L'Étudiant B2B Data Monetisation | Case #3  
 
 ---
 
@@ -13,7 +12,7 @@ Le traitement des données repose sur trois piliers :
 
 ## 2. Gestion du Consentement (Opt-in)
 Le pipeline BigQuery (`letudiant-data-prod.Hacka_g24`) intègre des filtres de consentement :
-- `optin_commercial_actuel` : Indispensable pour l'envoi de leads aux écoles.
+- `optin_commercial_actuel` : Obligatoire pour l'envoi de leads aux écoles.
 - `optin_letudiant_actuel` : Pour les communications éditoriales.
 - `optin_tel_actuel` : Pour le démarchage téléphonique.
 
