@@ -22,8 +22,17 @@ const AudienceTab = () => {
           fetch('http://localhost:3001/api/data/repartitionNiveaux').catch(() => null)
         ]);
 
-        if (resDomaines && resDomaines.ok) setTopDomaines(await resDomaines.json());
-        if (resNiveaux && resNiveaux.ok) setNiveaux(await resNiveaux.json());
+        if (resDomaines && resDomaines.ok) {
+          setTopDomaines(await resDomaines.json());
+        } else {
+          console.error("Erreur BQ (Domaines):", await resDomaines?.text());
+        }
+
+        if (resNiveaux && resNiveaux.ok) {
+          setNiveaux(await resNiveaux.json());
+        } else {
+          console.error("Erreur BQ (Niveaux):", await resNiveaux?.text());
+        }
       } catch (error) {
         console.error("Erreur de récupération graphiques Audience:", error);
       }
@@ -35,16 +44,20 @@ const AudienceTab = () => {
   useEffect(() => {
     const fetchVolume = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/data/buildAudience?domaine=${filters.domaine}&niveau=${filters.niveau}`);
+        // HACKATHON TIP: Toujours encoder les valeurs pour éviter de casser l'URL avec des espaces ou des "/"
+        const url = `http://localhost:3001/api/data/buildAudience?domaine=${encodeURIComponent(filters.domaine)}&niveau=${encodeURIComponent(filters.niveau)}&grade=${encodeURIComponent(filters.grade)}`;
+        
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          // On s'attend à recevoir [{ volume: X }] de BigQuery
           if (data && data[0] && data[0].volume !== undefined) {
             setAudienceVolume(data[0].volume);
           }
+        } else {
+          console.error("Erreur BQ (Simulateur):", await res.text());
         }
       } catch (error) {
-        console.error("Erreur simulateur BQ:", error);
+        console.error("Erreur réseau simulateur BQ:", error);
       }
     };
     fetchVolume();
@@ -181,14 +194,15 @@ const AudienceTab = () => {
 // ============================================================================
 function App() {
   const [activeTab, setActiveTab] = useState("Audience"); // Changé pour montrer ton nouvel onglet par défaut 😉
+  // 🛡️ BOURCLIER ANTI-CRASH : On initialise avec des tableaux vides, jamais 'null' !
   const [data, setData] = useState({
-    monthlyConversations: null,
-    domainDistribution: null,
-    studyLevelDist: null,
-    leadScoring: null,
-    salonConversion: null,
-    crmEngagement: null,
-    optinFunnel: null
+    monthlyConversations: [],
+    domainDistribution: [],
+    studyLevelDist: [],
+    leadScoring: [],
+    salonConversion: [],
+    crmEngagement: [],
+    optinFunnel: []
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
