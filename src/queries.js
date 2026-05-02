@@ -88,3 +88,32 @@ export const BQ_QUERIES = {
     FROM \`${PROJECT}.${DATASET}.Site_Inscrits\`
   `,
 };
+
+// src/queries.js
+
+export const getAudienceQueries = (PROJECT, DATASET) => ({
+  // Graphique de gauche : Domaines d'intérêt
+  audienceDomains: `
+    SELECT 
+      d.domaine_etude as label, 
+      COUNT(s.id_inscrit_site) as value
+    FROM \`${PROJECT}.${DATASET}.Site_Inscrits\` s
+    JOIN \`${PROJECT}.${DATASET}.Site_Inscrits_dimension_domaine_etude\` d 
+      ON s.id_domaine_etude = d.id_domaine_etude
+    GROUP BY 1
+    ORDER BY value DESC
+    LIMIT 10
+  `,
+
+  // Graphique de droite : Niveaux scolaires
+  audienceLevels: `
+    SELECT 
+      l.study_level as label, 
+      COUNT(s.id_inscrit_site) as value
+    FROM \`${PROJECT}.${DATASET}.Site_Inscrits\` s
+    JOIN \`${PROJECT}.${DATASET}.Site_Inscrits_dimension_study_level\` l 
+      ON s.id_study_level = l.id_study_level
+    GROUP BY 1
+    ORDER BY value DESC
+  `
+});
