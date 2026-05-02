@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function App() {
   const [activeTab, setActiveTab] = useState("Vue d'ensemble");
-  
-  // États pour le simulateur de l'onglet Audience
-  const [simFilters, setSimFilters] = useState({ domaine: 'Tous', niveau: 'Tous', grade: 'Tous' });
-
   const [data, setData] = useState({
     monthlyConversations: null,
     domainDistribution: null,
@@ -46,7 +42,7 @@ function App() {
       });
     } catch (err) {
       console.error(err);
-      setError("Impossible de charger les données BigQuery.");
+      setError("Impossible de charger les données. Le serveur Node tourne-t-il ?");
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +52,7 @@ function App() {
     fetchData();
   }, []);
 
-  // --- CALCULS KPI (Vue d'ensemble) ---
+  // ================= CALCULS KPI =================
   const inscritsActifsTotal = data.optinFunnel?.[0]?.total || 0;
   const inscritsK = inscritsActifsTotal ? (inscritsActifsTotal / 1000).toFixed(0) + 'k' : '...';
   const totalConv = data.monthlyConversations?.reduce((acc, curr) => acc + Number(curr.conversations), 0) || 0;
@@ -69,26 +65,23 @@ function App() {
   const avgTokensK = avgTokensRaw ? (avgTokensRaw / 1000).toFixed(0) + 'k' : '...';
   const salonConvRate = data.salonConversion?.[0]?.taux_conversion || '...';
 
-  // --- LOGIQUE SIMULATEUR AUDIENCE ---
-  // On simule un volume dynamique basé sur les filtres pour impressionner le jury
-  let baseVolume = optinCommYes > 0 ? optinCommYes : 278000; // Utilise le vrai chiffre opt-in si dispo
-  if (simFilters.domaine !== 'Tous') baseVolume *= 0.35;
-  if (simFilters.niveau !== 'Tous') baseVolume *= 0.28;
-  if (simFilters.grade !== 'Tous') baseVolume *= 0.45;
-  
-  const estimatedVolume = Math.round(baseVolume);
-  const estimatedPrice = Math.round(estimatedVolume * 0.08); // 0.08€ par contact (Business Plan)
+  // ================= DEFINITION DES ONGLETS =================
+  const tabs = [
+    { id: "Vue d'ensemble", label: "📊 Vue d'ensemble" },
+    { id: "Lead Scoring", label: "🎯 Lead Scoring" },
+    { id: "CRM & Salons", label: "🤝 CRM & Salons" },
+    { id: "SQL QUERIES", label: "💻 SQL QUERIES" }
+  ];
 
-  // Couleurs pour les graphiques
-  const barColors = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f97316'];
-
+  // ================= RENDU DU CONTENU DES ONGLETS =================
   const renderTabContent = () => {
-    if (isLoading) return <div className="text-center py-20 text-gray-500 animate-pulse">Chargement BQ en cours...</div>;
+    if (isLoading) return <div className="text-center py-20 text-gray-500 animate-pulse">Calcul des données BigQuery en cours...</div>;
 
     switch (activeTab) {
       case "Vue d'ensemble":
         return (
           <>
+            {/* GRILLE 6 KPI */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div className="bg-[#151828] border border-gray-800 rounded-xl p-6 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
@@ -128,159 +121,131 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-              <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
-                <h2 className="text-lg font-bold mb-6">Volume conversations / mois</h2>
-                <div className="h-64 w-full">
+            {/* SECTION GRAPHIQUES (Ligne Principale) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              
+              {/* Colonne Gauche : Le grand graphique en courbes */}
+              <div className="col-span-2 bg-[#151828] border border-gray-800 rounded-xl p-6 flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold">Volume conversations / mois</h2>
+                    <p className="text-xs text-gray-500">Agent_Conversationnel_ORI_Conversation</p>
+                  </div>
+                  <span className="bg-indigo-900/50 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-700/50">Live BQ</span>
+                </div>
+                <div className="flex-1 w-full min-h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data.monthlyConversations} margin={{ top: 5, right: 20, bottom: 5, left: -20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
                       <XAxis dataKey="month" stroke="#4b5563" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis stroke="#4b5563" fontSize={12} tickLine={false} axisLine={false} />
                       <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#fff' }} />
-                      <Line type="monotone" dataKey="conversations" name="Total" stroke="#8b5cf6" strokeWidth={3} dot={false} />
-                      <Line type="monotone" dataKey="identified" name="Identifiés" stroke="#10b981" strokeWidth={3} dot={false} />
+                      <Line type="monotone" dataKey="conversations" name="Total" stroke="#8b5cf6" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="identified" name="Identifiés" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+              </div>
+
+              {/* Colonne Droite : Opt-in Funnel ET Domaines empilés */}
+              <div className="col-span-1 flex flex-col gap-6">
+                
+                {/* 1. Opt-in Funnel */}
+                <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
+                   <div className="flex items-center gap-2 mb-1">
+                     <span className="bg-green-500 text-white rounded text-[10px] px-1 font-bold">✓</span>
+                     <h2 className="text-lg font-bold">Opt-in funnel</h2>
+                   </div>
+                   <p className="text-xs text-gray-500 mb-4">Site_Inscrits</p>
+                   
+                   <div className="space-y-4">
+                     {isLoading || !data.optinFunnel || !data.optinFunnel[0] ? (
+                       <p className="text-sm text-gray-500">Calcul...</p>
+                     ) : (
+                       <>
+                         <div>
+                           <div className="flex justify-between text-xs mb-1 text-gray-300">
+                             <span>L'Étudiant</span>
+                             <span>{data.optinFunnel[0].letudiant} ({((data.optinFunnel[0].letudiant / data.optinFunnel[0].total) * 100).toFixed(1)}%)</span>
+                           </div>
+                           <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                             <div className="bg-indigo-500 h-full rounded-full" style={{width: `${(data.optinFunnel[0].letudiant / data.optinFunnel[0].total) * 100}%`}}></div>
+                           </div>
+                         </div>
+                         <div>
+                           <div className="flex justify-between text-xs mb-1 text-gray-300">
+                             <span>Commercial</span>
+                             <span>{data.optinFunnel[0].commercial} ({((data.optinFunnel[0].commercial / data.optinFunnel[0].total) * 100).toFixed(1)}%)</span>
+                           </div>
+                           <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                             <div className="bg-green-500 h-full rounded-full" style={{width: `${(data.optinFunnel[0].commercial / data.optinFunnel[0].total) * 100}%`}}></div>
+                           </div>
+                         </div>
+                         <div>
+                           <div className="flex justify-between text-xs mb-1 text-gray-300">
+                             <span>Téléphone</span>
+                             <span>{data.optinFunnel[0].telephone} ({((data.optinFunnel[0].telephone / data.optinFunnel[0].total) * 100).toFixed(1)}%)</span>
+                           </div>
+                           <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                             <div className="bg-orange-500 h-full rounded-full" style={{width: `${(data.optinFunnel[0].telephone / data.optinFunnel[0].total) * 100}%`}}></div>
+                           </div>
+                         </div>
+                       </>
+                     )}
+                   </div>
+                </div>
+
+                {/* 2. Répartition par domaines */}
+                <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
+                  <h2 className="text-lg font-bold mb-4">Répartition par domaine</h2>
+                  <div className="space-y-3">
+                    {data.domainDistribution?.slice(0, 5).map((item, i) => (
+                      <div key={i}>
+                        <div className="flex justify-between text-xs mb-1 text-gray-300">
+                          <span className="truncate w-40">{item.domaine_etude}</span>
+                          <span>{item.cnt}</span>
+                        </div>
+                        <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-blue-500 h-full rounded-full" style={{width: `${(item.cnt / data.domainDistribution[0].cnt) * 100}%`}}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* 3 CARTES INSIGHTS DU BAS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#11131d] border border-gray-800/50 rounded-xl p-6 text-center hover:border-gray-700 transition-colors">
+                <div className="text-2xl mb-3">🔥</div>
+                <h3 className="font-bold mb-2">Pic rentrée Sep 2025</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  7 192 conversations en septembre = +70% vs mois suivant. Signal d'anxiété capturable.
+                </p>
+              </div>
+              <div className="bg-[#11131d] border border-gray-800/50 rounded-xl p-6 text-center hover:border-gray-700 transition-colors">
+                <div className="text-2xl mb-3">📅</div>
+                <h3 className="font-bold mb-2">Boost Parcoursup Jan 2026</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  +147% de conv. en janvier vs décembre. Les vœux déclenchent une demande massive.
+                </p>
+              </div>
+              <div className="bg-[#11131d] border border-gray-800/50 rounded-xl p-6 text-center hover:border-gray-700 transition-colors">
+                <div className="text-2xl mb-3">💎</div>
+                <h3 className="font-bold mb-2">
+                  {isLoading || !data.domainDistribution ? '...' : `${data.domainDistribution[0]?.domaine_etude} en tête`}
+                </h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  {isLoading || !data.domainDistribution ? '...' : `${(data.domainDistribution[0]?.cnt / 1000).toFixed(0)}k profils intéressés. Premier vivier pour les écoles.`}
+                </p>
               </div>
             </div>
           </>
         );
 
-      case 'Audience':
-        return (
-          <div className="space-y-6">
-            {/* Haut : Les deux graphiques */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              {/* Top Domaines (BarChart Horizontal) */}
-              <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h2 className="text-lg font-bold flex items-center gap-2">🎓 Top domaines d'intérêt</h2>
-                    <p className="text-xs text-gray-500 mt-1">Site_Inscrits JOIN dimension_domaine_etude</p>
-                  </div>
-                  <span className="bg-indigo-900/40 text-indigo-400 text-[10px] px-2 py-1 rounded-full border border-indigo-700/50">SQL</span>
-                </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart layout="vertical" data={data.domainDistribution?.slice(0, 5)} margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="domaine_etude" type="category" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 11}} width={140} />
-                      <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#fff', borderRadius: '8px' }} />
-                      <Bar dataKey="cnt" radius={[0, 4, 4, 0]} barSize={24}>
-                        {data.domainDistribution?.slice(0, 5).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={barColors[index % barColors.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Répartition Niveaux (BarChart Vertical) */}
-              <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
-                <div className="mb-6">
-                  <h2 className="text-lg font-bold flex items-center gap-2">📚 Répartition niveaux scolaires</h2>
-                  <p className="text-xs text-gray-500 mt-1">Site_Inscrits JOIN dimension_study_level</p>
-                </div>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.studyLevelDist?.slice(0, 7)} margin={{ top: 0, right: 0, left: -20, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                      <XAxis dataKey="study_level" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 11}} angle={-35} textAnchor="end" />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 11}} tickFormatter={(value) => `${value/1000}k`} />
-                      <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#fff', borderRadius: '8px' }} />
-                      <Bar dataKey="cnt" radius={[4, 4, 0, 0]} barSize={32}>
-                        {data.studyLevelDist?.slice(0, 7).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={barColors[index % barColors.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Bas : Audience Pack Builder (Simulateur interactif) */}
-            <div className="bg-[#151828] border border-gray-800 rounded-xl p-8 relative overflow-hidden">
-              <div className="mb-8">
-                <h2 className="text-xl font-bold flex items-center gap-2">🎯 Audience Pack Builder</h2>
-                <p className="text-sm text-gray-400 mt-1">Simulateur de segment — données réelles BigQuery</p>
-              </div>
-
-              <div className="flex flex-col lg:flex-row gap-12">
-                {/* Colonne des Filtres */}
-                <div className="flex-1 space-y-8">
-                  {/* Filtre Domaine */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Domaine</p>
-                    <div className="flex flex-wrap gap-2">
-                      {['Tous', 'Commerce', 'International', 'Communication', 'Arts'].map(opt => (
-                        <button key={opt} onClick={() => setSimFilters({...simFilters, domaine: opt})}
-                          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors border ${simFilters.domaine === opt ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-transparent text-gray-400 border-gray-700 hover:border-gray-500'}`}>
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Filtre Niveau */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Niveau</p>
-                    <div className="flex flex-wrap gap-2">
-                      {['Tous', 'Terminale', 'Première', '2nde Générale', '3ème', '4ème', 'Bac+1'].map(opt => (
-                        <button key={opt} onClick={() => setSimFilters({...simFilters, niveau: opt})}
-                          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors border ${simFilters.niveau === opt ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-transparent text-gray-400 border-gray-700 hover:border-gray-500'}`}>
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Filtre Grade */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Grade Lead</p>
-                    <div className="flex flex-wrap gap-2">
-                      {['Tous', 'A', 'B', 'C'].map(opt => (
-                        <button key={opt} onClick={() => setSimFilters({...simFilters, grade: opt})}
-                          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors border ${simFilters.grade === opt ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-transparent text-gray-400 border-gray-700 hover:border-gray-500'}`}>
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Colonne Résultat (Pricing) */}
-                <div className="w-full lg:w-72">
-                  <div className="bg-[#1a1d2d] border border-indigo-900/50 rounded-xl p-6 text-center h-full flex flex-col justify-center shadow-[0_0_30px_rgba(79,70,229,0.1)]">
-                    <p className="text-sm text-gray-400 mb-2">Volume estimé</p>
-                    <div className="text-4xl font-black text-white mb-2">
-                      {(estimatedVolume / 1000).toFixed(0)}k
-                    </div>
-                    <p className="text-xs text-gray-500 mb-6">contacts actifs</p>
-                    
-                    <div className="text-2xl font-bold text-green-400 mb-1">
-                      €{(estimatedPrice / 1000).toFixed(1)}k
-                    </div>
-                    <p className="text-[10px] text-gray-500">@ €0.08 / contact opt-in</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-gray-800 text-center">
-                <p className="text-xs text-gray-600">
-                  ↳ Requête SQL générée automatiquement · Filtre opt-in commercial appliqué · RGPD conforme
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-
       case 'Lead Scoring':
-        // (Code de l'onglet Lead Scoring préservé...)
         return (
           <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-bold mb-2">Algorithme de Lead Scoring (Basé sur l'ORI)</h2>
@@ -300,7 +265,6 @@ function App() {
         );
 
       case 'CRM & Salons':
-        // (Code de l'onglet CRM & Salons préservé...)
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
@@ -347,12 +311,17 @@ function App() {
           </div>
         );
 
-      case 'SQL Queries':
+      case 'SQL QUERIES':
         return (
           <div className="bg-[#151828] border border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-bold mb-4">Aperçu des données brutes (JSON via BigQuery)</h2>
+            <p className="text-sm text-gray-400 mb-4">Preuve d'intégration "Live" avec l'API Google Cloud.</p>
             <div className="bg-[#0a0c10] p-4 rounded-lg overflow-auto max-h-96 text-xs font-mono text-green-400">
-              <pre>{JSON.stringify(data, null, 2)}</pre>
+              <pre>{JSON.stringify({ 
+                monthly_conversations: data.monthlyConversations?.[0], 
+                lead_scoring: data.leadScoring?.[0],
+                optin_funnel: data.optinFunnel?.[0]
+              }, null, 2)}</pre>
             </div>
           </div>
         );
@@ -362,20 +331,12 @@ function App() {
     }
   };
 
-  const TABS = [
-    { id: "Vue d'ensemble", icon: "📊" },
-    { id: "Audience", icon: "🎯" },
-    { id: "Lead Scoring", icon: "🏷️" },
-    { id: "CRM & Salons", icon: "📢" },
-    { id: "SQL Queries", icon: "🔍" }
-  ];
-
   return (
     <div className="bg-[#0f111a] min-h-screen text-white font-sans p-6">
       
       {/* HEADER COMPLET */}
       <header className="mb-6">
-        <div className="flex justify-between items-center border-b border-gray-800 pb-4 mb-6">
+        <div className="flex justify-between items-center border-b border-gray-800 pb-4 mb-4">
           <div>
             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
               L'Étudiant · Data Analytics
@@ -385,27 +346,27 @@ function App() {
           <div className="flex gap-4">
             <div className="flex items-center gap-2 bg-[#1a1d2d] px-4 py-2 rounded-md text-sm text-green-400 border border-green-900/30">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              BigQuery connecté
+              Connecté
             </div>
             <button onClick={fetchData} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-              {isLoading ? 'Calcul...' : '↻ Actualiser'}
+              {isLoading ? 'Calcul...' : '↻ Actualiser Base'}
             </button>
           </div>
         </div>
 
-        {/* NAVIGATION ONGLETS (Design Mac OS) */}
+        {/* NAVIGATION ONGLETS (Avec Emojis !) */}
         <nav className="flex gap-2 border-b border-gray-800 pb-px">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id 
-                  ? 'border-indigo-500 text-white bg-indigo-900/20' 
+                  ? 'border-indigo-500 text-indigo-400 bg-indigo-900/10' 
                   : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
               }`}
             >
-              <span>{tab.icon}</span> {tab.id}
+              {tab.label}
             </button>
           ))}
         </nav>
