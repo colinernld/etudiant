@@ -1,45 +1,33 @@
-# Spécifications Produits Data - L'Étudiant (Case #3)
-
-Ce document détaille les deux produits data phares issus de la plateforme, tels qu'implémentés dans la version actuelle du dashboard.
+# Spécifications Produits Data - L'Étudiant (Cas #3)
 
 ---
 
-## 1. Produit : SaaS "Baromètre Live de l'Orientation"
+## Produit 1 : Lead Scoring (Leads Data-as-a-Service)
 
-Ce produit correspond à l'interface de pilotage interactive développée avec React et Recharts.
-
-*   **Client cible** : Directions Marketing des écoles supérieures et Observatoires Régionaux de l'orientation.
-*   **Description** : Un dashboard dynamique permettant de visualiser en temps réel les tendances d'intérêt des étudiants par filière et par métropole.
-*   **Inputs (sourcés du code `App.jsx`)** :
-    *   `trendData` : Flux mensuel des intentions pour les filières Commerce, Ingénierie et Art & Design.
-    *   `regionalData` : Volume de requêtes géolocalisées (Paris, Lyon, Marseille, Bordeaux, Lille).
-    *   `satisfactionData` : Analyse de sentiment issue des interactions utilisateurs.
-*   **Transformations** :
-    *   **Agrégation Temporelle** : Transformation des logs bruts en courbes de tendances mensuelles via Recharts.
-    *   **Filtrage Dynamique** : Logique de tri par ville via le composant `Header` et le hook `useState`.
-    *   **Calcul de Performance** : Génération de l'indicateur "Croissance vs N-1" (+15% en dynamique).
-*   **Logique de Pricing** : Abonnement annuel (SaaS) avec frais d'installation (Setup fee). Accès illimité aux données de sa propre zone géographique.
-*   **Profil de Marge** : **75%**. Coûts stables liés à l'hébergement Cloud et à la maintenance du front-end React.
+*   **Client cible :** Directions des admissions des écoles d'enseignement supérieur privées et CFA.
+*   **Description :** Algorithme attribuant un grade (A — Hot, B — Warm, C — Cold) à chaque prospect en fonction de la profondeur de son engagement conversationnel et de son identification sur la plateforme.
+*   **Inputs :**
+    *   Table : `Agent_Conversationnel_ORI_Conversation`
+    *   Données : Date de la conversation (`created_at`), identification utilisateur (`id_Inscrit_site`), volume de tokens (`nb_input_tokens`).
+*   **Transformations :**
+    *   **Calcul du Score Composite :** Formule SQL (`lead_scoring`) pondérant la récence de l'interaction (décroissance exponentielle sur 90 jours : 35%), l'identification de l'utilisateur (25%), la profondeur de l'échange (ratio de tokens : 25%), et la complétude du profil (15%).
+    *   **Catégorisation :** Conversion du score continu (0-100) en grades discrets (A ≥ 75, B ≥ 40, C < 40).
+    *   **Filtrage Légal :** Croisement avec la requête `optin_funnel` (`Site_Inscrits`) pour ne retenir que les profils ayant `optin_commercial_actuel = 'OUI'` (40.2% de la base, soit 278k profils activables).
+*   **Logique de Pricing :** Coût par Lead (CPL) qualifié. Le prix varie selon le grade (ex: Grade A facturé au prix fort).
+*   **Profil de Marge :** **85%**. Les coûts de traitement BigQuery sont marginaux par rapport à la valeur de revente d'un profil "Hot".
 
 ---
 
-## 2. Produit : Flux "Premium Leads Qualifiés"
+## Produit 2 : Observatoire d'Audience et d'Engagement (SaaS Dashboard)
 
-Ce produit est le moteur de revenus directs, basé sur les métriques de conversion affichées en haut du dashboard.
-
-*   **Client cible** : Responsables des admissions en écoles privées, CFA et universités internationales.
-*   **Description** : Livraison de listes de prospects (leads) ayant manifesté une intention forte, filtrés par l'algorithme de scoring propriétaire.
-*   **Inputs (sourcés du code `App.jsx`)** :
-    *   `Total Leads Qualifiés` : Volume de 1 248 profils activables.
-    *   `Taux de Conversion` : Performance moyenne de 12.4% affichée en KPI.
-    *   `Indice de Confiance` : Score de fiabilité de 88% (issu du composant `ScoreCard`).
-*   **Transformations** :
-    *   **Lead Scoring** : Algorithme classant les profils de "Froid" à "Très Chaud" (Grade A).
-    *   **Nettoyage RGPD** : Filtrage automatique pour ne transmettre que les profils ayant un `optin_commercial` valide.
-    *   **Normalisation CRM** : Formatage des données pour une intégration directe dans les outils de vente des clients (Salesforce, Hubspot).
-*   **Logique de Pricing** : Coût par Lead (CPL). Facturation au volume avec un tarif dégressif selon la qualité du score (Grade).
-*   **Profil de Marge** : **90%**. Produit à très forte rentabilité car totalement automatisé par la pipeline de données.
-
----
-
-**Note de conformité technique** : Ces deux produits respectent les principes de pseudonymisation détaillés dans le fichier `conformite-rgpd.md`.
+*   **Client cible :** Responsables Marketing des établissements supérieurs et annonceurs du secteur éducatif.
+*   **Description :** Tableau de bord interactif (onglets : Vue d'ensemble, Audience, Salons) permettant d'analyser la saisonnalité de la demande, l'intérêt par domaine, et l'efficacité des canaux d'acquisition.
+*   **Inputs :**
+    *   Tables : `Site_Inscrits` (et ses dimensions), `Agent_Conversationnel_ORI_Conversation`, `Salons_Inscrits_et_venus`.
+    *   Données : Domaines d'études, niveaux d'études, historique des conversations mensuelles, statuts de présence aux salons.
+*   **Transformations :**
+    *   **Analyse de Saisonnalité :** Agrégation mensuelle des conversations (`monthly_conversations`) mettant en évidence les pics d'activité (ex: Rentrée Sept 2025, Boost Parcoursup Jan 2026).
+    *   **Segmentation d'Audience :** Distribution volumétrique par domaine d'étude (`domain_distribution` - ex: Commerce représente 18% de la base) et par niveau (`study_level_dist`).
+    *   **Mesure d'Efficacité Physique :** Calcul du taux de conversion "Inscrit → Venu" pour les salons physiques (`salon_conversion`, actuellement mesuré à 28.4%).
+*   **Logique de Pricing :** Abonnement SaaS annuel. L'accès donne droit de visualisation et d'export (selon la licence) aux données de marché pour orienter les stratégies de communication des écoles.
+*   **Profil de Marge :** **70%**. Nécessite l'amortissement du développement front-end et le maintien des pipelines BigQuery en temps réel.
