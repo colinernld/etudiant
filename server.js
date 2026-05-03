@@ -1,50 +1,50 @@
+// server.js
 import express from 'express';
 import cors from 'cors';
-import { BigQuery } from '@google-cloud/bigquery';
-import { getQueries } from './src/queries.js';
+import alasql from 'alasql';
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
+console.log("⏳ Chargement des données DEV en mémoire (AlaSQL)...");
 
-// Google Cloud ira lire la session ouverte par ton "gcloud auth"
-const bigquery = new BigQuery({
-  projectId: 'letudiant-data-prod' // Garde juste l'ID du projet
-});
-
-app.get('/api/data/:queryName', async (req, res) => {
+const initDB = async () => {
     try {
-      const { queryName } = req.params;
-      const PROJECT = 'letudiant-data-prod';
-      const DATASET = 'Hacka_g24';
-      
-      // On appelle notre fonction avec les paramètres de l'URL !
-      const queries = getQueries(PROJECT, DATASET, req.query);
-      const sqlQuery = queries[queryName];
-  
-      if (!sqlQuery) {
-        return res.status(404).json({ error: `Requête ${queryName} non trouvée` });
-      }
-  
-      const options = {
-        query: sqlQuery,
-        location: 'EU',
-        useQueryCache: false, 
-      };
-  
-      const [rows] = await bigquery.query(options);
-      res.json(rows);
+        // On utilise les fichiers _DEV (5000 lignes) pour que ça soit instantané !
+        await alasql.promise(`
+            CREATE TABLE Site_Inscrits;
+            SELECT * INTO Site_Inscrits FROM CSV('./data/Site_Inscrits_DEV.csv', {headers:true, separator:','});
+            
+            CREATE TABLE CRM_Campagnes;
+            SELECT * INTO CRM_Campagnes FROM CSV('./data/CRM_Campagnes_DEV.csv', {headers:true, separator:','});
+            
+            CREATE TABLE Salons;
+            SELECT * INTO Salons FROM CSV('./data/Salons_Inscrits_DEV.csv', {headers:true, separator:','});
+            
+            CREATE TABLE Domaine_Etude;
+            SELECT * INTO Domaine_Etude FROM CSV('./data/Domaine_Etude_DEV.csv', {headers:true, separator:','});
+        `);
+        console.log("✅ Base DEV locale prête ! Moteur SQL opérationnel 🚀");
+    } catch (err) {
+        console.error("❌ Erreur lors du chargement des CSV DEV :", err);
+    }
+};
+
+initDB();
+
+app.post('/api/query', async (req, res) => {
+    try {
+        const { sql } = req.body;
+        console.log(`[Reçu] Exécution SQL : ${sql}`);
+        
+        const result = await alasql.promise(sql);
+        res.json(result);
     } catch (error) {
-      console.error(`🚨 Erreur BQ sur la route ${req.params.queryName} :`, error);
-      res.status(500).json({ error: error.message });
+        console.error("Erreur SQL:", error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// DÉMARRAGE DU SERVEUR
-const PORT = process.env.PORT || 3001;
-
-app.listen(PORT, () => {
-  console.log(`\n🚀 Serveur Backend Hacka_g24 lancé avec succès !`);
-  console.log(`📡 En écoute sur : http://localhost:${PORT}`);
-  console.log(`🧠 Prêt à interroger BigQuery (letudiant-data-prod) en temps réel.\n`);
-});
+const PORT = 3000;
+app.listen(PORT, () => console.log(`🚀 API Hackathon en écoute sur http://localhost:${PORT}`));
