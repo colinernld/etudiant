@@ -1,1 +1,14 @@
+/* src/index.css */
 @import "tailwindcss";
+
+/* Variables de la marque L'Étudiant pour aller vite */
+@theme {
+  --color-etudiant-orange: #f26522;
+  --color-etudiant-blue: #004b87;
+  --color-etudiant-light: #f5f7fa;
+}
+
+body {
+  background-color: var(--color-etudiant-light);
+  font-family: 'Inter', sans-serif;
+}
